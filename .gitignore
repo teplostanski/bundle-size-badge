@@ -1,0 +1,15 @@
+node_modules/
+*.log
+.DS_Store
+.cache/
+
+# Nested real package used for integration tests (own git repo).
+# Prefer keeping a local clone; CI clones it when missing.
+# Switch to a git submodule later if/when this action repo is published.
+/header-map/
+
+# Local/test scratch
+test/tmp/**
+!test/tmp/.gitkeep
+test/artifacts/**
+!test/artifacts/.gitkeep

@@ -1,0 +1,106 @@
+name: Package Size Badge
+description: >
+  Bundle a package entry like Bundlephobia (minify + gzip/brotli), append version
+  history, and publish SVG badges on a dedicated cache branch.
+author: me
+
+branding:
+  icon: package
+  color: blue
+
+inputs:
+  path:
+    description: Path to the package directory (must contain package.json)
+    required: false
+    default: '.'
+  entry:
+    description: Optional entry file override (relative to package path). If omitted, resolved from exports/module/main.
+    required: false
+    default: ''
+  cache-branch:
+    description: Branch used as append-only size cache and badge host
+    required: false
+    default: package-size-cache
+  token:
+    description: GitHub token with contents write access to push the cache branch
+    required: false
+    default: ${{ github.token }}
+  commit:
+    description: Whether to commit and push results to the cache branch
+    required: false
+    default: 'true'
+  update-latest-on-prerelease:
+    description: If true, prerelease versions also update badges/latest.svg
+    required: false
+    default: 'false'
+  external:
+    description: >
+      Comma-separated package names to leave external (not bundled).
+      Empty means bundle dependencies into the size (Bundlephobia-like default).
+    required: false
+    default: ''
+  working-directory:
+    description: Checkout working directory for git operations (usually the repo root)
+    required: false
+    default: '.'
+
+outputs:
+  version:
+    description: Package version that was measured
+    value: ${{ steps.run.outputs.version }}
+  entry:
+    description: Resolved entry path that was bundled
+    value: ${{ steps.run.outputs.entry }}
+  size-raw:
+    description: Minified bundle size in bytes
+    value: ${{ steps.run.outputs.size-raw }}
+  size-gzip:
+    description: Gzip size in bytes
+    value: ${{ steps.run.outputs.size-gzip }}
+  size-brotli:
+    description: Brotli size in bytes
+    value: ${{ steps.run.outputs.size-brotli }}
+  size-raw-pretty:
+    description: Human-readable minified size
+    value: ${{ steps.run.outputs.size-raw-pretty }}
+  size-gzip-pretty:
+    description: Human-readable gzip size
+    value: ${{ steps.run.outputs.size-gzip-pretty }}
+  size-brotli-pretty:
+    description: Human-readable brotli size
+    value: ${{ steps.run.outputs.size-brotli-pretty }}
+  badge-path:
+    description: Path of the latest SVG badge inside the cache branch
+    value: ${{ steps.run.outputs.badge-path }}
+  skipped:
+    description: 'true if version already existed in cache and was not overwritten'
+    value: ${{ steps.run.outputs.skipped }}
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        package-manager-cache: false
+
+    - name: Install action dependencies
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: npm ci --omit=dev
+
+    - name: Measure package size and update cache branch
+      id: run
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_ENTRY: ${{ inputs.entry }}
+        INPUT_CACHE-BRANCH: ${{ inputs.cache-branch }}
+        INPUT_TOKEN: ${{ inputs.token }}
+        INPUT_COMMIT: ${{ inputs.commit }}
+        INPUT_UPDATE-LATEST-ON-PRERELEASE: ${{ inputs.update-latest-on-prerelease }}
+        INPUT_EXTERNAL: ${{ inputs.external }}
+        INPUT_WORKING-DIRECTORY: ${{ inputs.working-directory }}
+      run: node "${{ github.action_path }}/dist/index.js"
