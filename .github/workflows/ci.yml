@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Fixture smoke (typecheck + build + tiny-lib)
+        run: npm test
+
+      - name: Clone header-map (real package under test)
+        run: |
+          if [ ! -f header-map/package.json ]; then
+            git clone --depth 1 https://github.com/teplostanski/header-map.git header-map
+          fi
+
+      - name: Build header-map
+        working-directory: header-map
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Real-package smoke (header-map)
+        run: npm run test:real
+
+      - name: Action composite smoke on fixture
+        uses: ./
+        with:
+          path: fixtures/tiny-lib
+          commit: 'false'
+
+      - name: Action composite smoke on header-map
+        uses: ./
+        with:
+          path: header-map
+          commit: 'false'
