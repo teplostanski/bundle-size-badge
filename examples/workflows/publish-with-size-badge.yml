@@ -1,0 +1,47 @@
+# Example: measure bundle size after a successful npm publish and
+# persist history + SVG badges on the package-size-cache branch.
+name: Publish
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write # for npm trusted publishing
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Publish to npm
+        run: npm publish --access public
+        # With trusted publishing you typically omit NODE_AUTH_TOKEN.
+
+      - name: Package size badge
+        id: size
+        # Replace with your published action, e.g. your-org/package-size-badge-action@v1
+        uses: ./
+        with:
+          path: .
+          cache-branch: package-size-cache
+          # commit defaults to true
+
+      - name: Summary
+        run: |
+          echo "gzip: ${{ steps.size.outputs.size-gzip-pretty }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "badge: https://raw.githubusercontent.com/${{ github.repository }}/package-size-cache/badges/latest.svg" >> "$GITHUB_STEP_SUMMARY"
