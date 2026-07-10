@@ -1,8 +1,9 @@
-name: Package Size Badge
+name: Bundle Size Badge
 description: >
-  Bundle a package entry like Bundlephobia (minify + gzip/brotli), append version
-  history, and publish SVG badges on a dedicated cache branch.
-author: me
+  Measure an npm package entry as a minified bundle (gzip/brotli), append
+  per-version history, and publish SVG badges on a dedicated git branch.
+  Built for npm libraries: import cost in the README, not install size on disk.
+author: teplostanski
 
 branding:
   icon: package

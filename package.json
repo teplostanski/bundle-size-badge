@@ -1,7 +1,7 @@
 {
   "name": "package-size-badge-action",
   "version": "1.0.0",
-  "description": "Measure npm package bundle size (min+gzip) like Bundlephobia and persist history + SVG badges on a dedicated git branch",
+  "description": "GitHub Action: measure npm package bundle size (min+gzip/brotli), cache per version, publish SVG badges",
   "private": true,
   "main": "dist/index.js",
   "scripts": {

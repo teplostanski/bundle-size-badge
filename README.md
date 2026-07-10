@@ -1,4 +1,4 @@
-# Package Size Badge Action
+# Bundle Size Badge
 
 GitHub Action that measures an npm package the way README readers care about:
 
