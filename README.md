@@ -1,19 +1,68 @@
 # Bundle Size Badge
 
-GitHub Action that measures an npm package the way README readers care about:
+[![min+gzip](https://raw.githubusercontent.com/teplostanski/header-map/package-size-cache/badges/latest.svg)](https://github.com/teplostanski/header-map)
 
-`default entry -> esbuild bundle -> minify -> gzip / brotli`
+GitHub Action for **npm** packages: measure default entry as a minified bundle
+(`min + gzip` / brotli), append an immutable per-version record, and publish SVG
+badges on a dedicated git branch.
 
-Then it appends an immutable per-version record and SVG badges to a dedicated
-branch (`package-size-cache` by default). No backend. No Bundlephobia rate limits.
+No backend. No Bundlephobia rate limits. Size is computed once at release and
+cached in your repo.
+
+Live example: [`@teplostanski/header-map`](https://github.com/teplostanski/header-map)
+(badge above is served from that repo's `package-size-cache` branch).
 
 ## Why
 
-- Package Phobia shows install/publish weight on disk, not import cost
-- Bundlephobia badges often die on rate limits because size is computed on demand
-- Package version size is immutable: measure once at release, cache forever
+README readers care about **import cost**, not how heavy `node_modules` is on disk.
 
-## Badge in README
+| Approach | What you get | Weak spot |
+| --- | --- | --- |
+| Package Phobia / npm "package size" badges | publish/install weight on disk | not what a bundler ships to users |
+| Bundlephobia badges | entry bundle min+gzip | remote API rate limits; badge often blank |
+| PR size bots (`compressed-size-action`, size-limit, ...) | diff comments on pull requests | not a stable README badge + version history |
+| **Bundle Size Badge** | min+gzip (and friends) + append-only history in-repo | you run it in your release CI |
+
+Flow:
+
+`exports/module/main -> esbuild bundle -> minify -> gzip / brotli -> JSON + SVG -> cache branch`
+
+## Usage
+
+Pin a major tag. Compatible releases move the `v1` tag forward; breaking changes
+get `v2`.
+
+```yaml
+permissions:
+  contents: write
+
+steps:
+  - uses: actions/checkout@v4
+
+  - name: Build your package
+    run: npm ci && npm run build
+
+  - name: Record package size badge
+    uses: teplostanski/bundle-size-badge@v1
+    with:
+      path: .
+      # default cache branch; override if you want another name
+      cache-branch: package-size-cache
+```
+
+Run this **after** your package is built (so `dist` / publish entry exists).
+Typical place: release workflow, after a successful `npm publish`.
+
+See [`examples/workflows/publish-with-size-badge.yml`](./examples/workflows/publish-with-size-badge.yml).
+
+### npm trusted publishing
+
+If you publish with npm OIDC trusted publishing, do **not** set `registry-url` on
+`actions/setup-node`. That writes `_authToken=${NODE_AUTH_TOKEN}` into `.npmrc`
+and breaks OIDC (often as a misleading `E404`). Keep `permissions.id-token: write`
+and configure the Trusted Publisher on the npm package page instead.
+
+### Badge markdown
 
 After the first successful run:
 
@@ -27,7 +76,13 @@ Per-version badge:
 ![min+gzip](https://raw.githubusercontent.com/<owner>/<repo>/package-size-cache/badges/1.2.3.svg)
 ```
 
-## Cache branch layout
+Also written on the cache branch: `badges/gzip.svg`, `badges/brotli.svg`,
+`badges/minified.svg`. If GitHub CDN caches an old SVG, bust with `?v=<version>`.
+
+## Cache branch
+
+Default branch name: `package-size-cache` (kept for compatibility with early
+adopters; override with `cache-branch`).
 
 ```text
 package-size-cache/
@@ -46,29 +101,7 @@ package-size-cache/
 
 Existing `versions/<version>.json` files are never overwritten.
 
-## Usage
-
-```yaml
-permissions:
-  contents: write
-
-steps:
-  - uses: actions/checkout@v4
-
-  - name: Build your package
-    run: npm ci && npm run build
-
-  - name: Record package size badge
-    uses: teplostanski/bundle-size-badge@v1
-    with:
-      path: .
-      cache-branch: package-size-cache
-```
-
-See [`examples/workflows/publish-with-size-badge.yml`](./examples/workflows/publish-with-size-badge.yml)
-for a publish-oriented workflow.
-
-### Inputs
+## Inputs
 
 | Input | Default | Description |
 | --- | --- | --- |
@@ -76,59 +109,30 @@ for a publish-oriented workflow.
 | `entry` | _(resolved)_ | Optional entry override |
 | `cache-branch` | `package-size-cache` | Append-only history + badges branch |
 | `token` | `github.token` | Token with permission to push the cache branch |
-| `commit` | `true` | Set `false` to only measure and emit outputs |
+| `commit` | `true` | Set `false` to only measure and emit outputs (measure-only) |
 | `update-latest-on-prerelease` | `false` | Whether prereleases update `badges/latest.svg` |
 | `external` | _(empty)_ | Comma-separated packages left external (not bundled) |
+| `working-directory` | `.` | Repo root for git operations |
 
-### Outputs
+## Outputs
 
 `version`, `entry`, `size-raw`, `size-gzip`, `size-brotli`, pretty variants,
 `badge-path`, `skipped`.
 
-## Local measurement
+## Limitations
 
-```bash
-npm ci
-npm run measure -- ./fixtures/tiny-lib
-npm run measure -- ./fixtures/tiny-lib --write-badge
-# preview: test/artifacts/badge-preview.svg
+- Measures the **default package entry** (or `entry` input), not every export path
+- Bundler is **esbuild**; numbers can differ from Rollup/webpack/Bundlephobia slightly
+- Dependencies are **bundled by default** (import-cost style). Peer deps you do not
+  want counted should go to `external` (e.g. `react`)
+- Tiny packages may show gzip > raw because of gzip headers; that is normal
+- Prereleases are stored in history but do not update `latest.svg` unless
+  `update-latest-on-prerelease: true`
+- Intended for **release/publish** workflows, not every PR commit
 
-# real package (nested clone, gitignored)
-npm run measure -- ./header-map --write-badge
-npm run test:real
-```
+Entry resolution order: `entry` input, then `exports`, then `module`, then `main`,
+then common fallbacks (`index.js`, `dist/index.js`, ...).
 
-## Develop
+## License
 
-```bash
-npm ci
-npm test            # fixture smokes
-npm run test:real   # @teplostanski/header-map
-npm run test:all
-```
-
-Layout:
-
-```text
-src/           action source
-examples/      consumer workflow examples
-fixtures/      tiny synthetic packages
-header-map/    real package under test (nested git repo, gitignored)
-test/          smoke tests + local artifacts
-```
-
-`header-map` is [teplostanski/header-map](https://github.com/teplostanski/header-map)
-(`@teplostanski/header-map` on npm). Kept as a nested git checkout (not a submodule
-yet; this action repo is not initialized). CI clones it when missing.
-
-This is a **composite** action: at runtime it runs `npm ci --omit=dev` inside the
-action directory (so the correct `esbuild` binary is installed for the runner OS),
-then executes `dist/index.js`.
-
-Commit `dist/index.js` and `package-lock.json` before tagging a release.
-
-## Notes
-
-- Entry resolution order: `entry` input, then `exports`, then `module`, then `main`, then common fallbacks
-- Dependencies are bundled by default (Bundlephobia-like). Use `external` to exclude peers (e.g. `react`)
-- Prerelease versions (`1.2.3-beta.1`) are stored in history but do not update `latest.svg` unless configured
+MIT. See [LICENSE](./LICENSE).
