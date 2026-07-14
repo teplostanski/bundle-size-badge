@@ -59,7 +59,7 @@ steps:
     run: npm ci && npm run build
 
   - name: Record package size badge
-    uses: <owner>/package-size-badge-action@v1
+    uses: teplostanski/bundle-size-badge@v1
     with:
       path: .
       cache-branch: package-size-cache

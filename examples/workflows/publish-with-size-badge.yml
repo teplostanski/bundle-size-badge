@@ -34,8 +34,7 @@ jobs:
 
       - name: Package size badge
         id: size
-        # Replace with your published action, e.g. your-org/package-size-badge-action@v1
-        uses: ./
+        uses: teplostanski/bundle-size-badge@v1
         with:
           path: .
           cache-branch: package-size-cache
