@@ -1,8 +1,6 @@
 name: Bundle Size Badge
-description: >
-  Measure an npm package entry as a minified bundle (gzip/brotli), append
-  per-version history, and publish SVG badges on a dedicated git branch.
-  Built for npm libraries: import cost in the README, not install size on disk.
+description: >-
+  Measure npm import cost (min+gzip), append version history, publish SVG badges.
 author: teplostanski
 
 branding:
