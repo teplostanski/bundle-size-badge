@@ -1,6 +1,6 @@
 {
   "name": "bundle-size-badge",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "GitHub Action: measure npm package bundle size (min+gzip/brotli), cache per version, publish SVG badges",
   "private": true,
   "main": "dist/index.js",
